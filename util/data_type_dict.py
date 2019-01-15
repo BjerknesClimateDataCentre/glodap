@@ -113,6 +113,12 @@ class DataTypeDict(metaclass=MetaDict):
         'h3err'        : 'SDN:P01::DHE3XXER',
         'phtsinsitutp' : 'SDN:P01::PHFRSXXX',
         'chla'         : 'SDN:P01::CPHLZZXX',
+        'CTDPRS'       : 'SDN:P01::PRESPR01',
+        'CFC-11'       : 'SDN:P01::MDMAP001',
+        'CFC-12'       : 'SDN:P01::MDMAP002',
+        'SF6'          : 'SDN:P01::PSF6XXXX',
+        'CHLORA'       : 'SDN:P01::CPHLZZXX',
+        'PHAEO'        : 'SDN:P01::PTAXZZXX',
 
         # Units
         'DBAR'       : 'SDN:P06::UPDB',
