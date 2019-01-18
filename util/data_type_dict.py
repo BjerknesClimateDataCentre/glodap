@@ -4,13 +4,16 @@
 # data files, primarily used by mockimport.py
 #
 #######################################################
+import collections
 
-class MetaDict(type):
+class MetaDict(type, collections.abc.Mapping):
     def __iter__(self):
         for key in DataTypeDict.conversions:
             yield key
     def __getitem__(self, key):
         return DataTypeDict.getIdentFromVar(key)
+    def __len__(self):
+        return len(DataTypeDict.conversions)
 
 class DataTypeDict(metaclass=MetaDict):
     """Thie class is a simple mapping of variable names in glodap, to bodc
