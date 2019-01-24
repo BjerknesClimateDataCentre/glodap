@@ -24,6 +24,7 @@ def excread(path):
     Returns a pandas data frame object with the content parsed from the exc file.
     A column called EXC_DATETIME is added, holding actual date-time values for
     the file. If no times are found, time is set to 00:00
+    A column EXC_CTDDEPTH is added holding sampling depth (from CTDDEP or CTDDEP)
     """
 
     logger = logging.getLogger('glodap.util.excread')
