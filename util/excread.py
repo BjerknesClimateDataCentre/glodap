@@ -64,6 +64,10 @@ def _excread(excfile):
     line = None
     headerlines = 0
     comments = ""
+    sampl_depth_columns = [
+        'CTDDEPTH',
+        'CTDDEP',
+    ]
 
     # Loop over the header to collect metadata and remove file type info
     while True:
@@ -146,6 +150,12 @@ def _excread(excfile):
                 )
                 raise e
         dataframe['EXC_DATETIME'] = datetime
+
+    # Try multiple sampling depth columns
+    for name in sampl_depth_columns:
+        if name in dataframe.columns:
+            dataframe['EXC_CTDDEPTH'] = dataframe[name]
+            break
 
     # Replace -9999, -999, -99, -9 with np.nan
     dataframe = dataframe.replace([-9999, -999, -99, -9], np.nan)
