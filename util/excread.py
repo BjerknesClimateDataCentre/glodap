@@ -68,6 +68,7 @@ def _excread(excfile):
     sampl_depth_columns = [
         'CTDDEPTH',
         'CTDDEP',
+	'CTDPRS',
     ]
 
     # Loop over the header to collect metadata and remove file type info
