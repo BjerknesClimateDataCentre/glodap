@@ -133,13 +133,13 @@ def _excread(excfile):
 
     # Add a datetime column. If time is not present, time is set to 00:00
     if 'DATE' in dataframe.columns and 'TIME' in dataframe.columns:
-        datetime = None
+        datetime = []
         for ix, d in enumerate(dataframe['DATE']):
             try:
                 t = dataframe['TIME'][ix]
                 date='{}-{}-{}'.format(d[:4], d[4:6], d[6:])
                 time = '{}:{}'.format(t[:2], t[2:])
-                datetime = pd.to_datetime('{} {}'.format(date, time), utc=True)
+                datetime.append(pd.to_datetime('{} {}'.format(date, time), utc=True))
             except Exception as e:
                 logger.error(
                     'Timer format error (date: {}) (time: {}) on line {}'
