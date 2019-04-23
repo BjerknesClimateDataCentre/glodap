@@ -3,6 +3,7 @@ from typing import Tuple
 import pandas as pd
 import numpy as np
 import scipy.interpolate as interp
+import math
 
 def average_values_for_duplicate_dimension(
         data: pd.DataFrame,
@@ -54,20 +55,30 @@ def pchip_interpolate_profile(
     Interpolates all variables in the data with respect to the dimension_key -
     variable. Keeps the original data, and tries to align this with the
     interpolated values.
-    """
-    # Make sure data are sorted and monotonic
-    data = average_values_for_duplicate_dimension(data, dimension_key)
-    data = sort_data_set_on_dimension(data, dimension_key)
 
+    Dimension data are between min() and max() values, and are rounded to fit
+    the step-parameter. So if step is 5, all dimesion data will be divisible by
+    5. Eg if:
+
+    depth=[11,13,19,25]
+    step=2
+
+    then:
+    depth_interp=[12, 14, 16, 18, 20, 22, 24]
+
+    """
     # Create interpolated list of independent variable
-    numsteps = (data[dimension_key].max() - data[dimension_key].min()) / step
+    min=math.ceil(data[dimension_key].min())
+    min += step - (min % step) if min % step > 0 else 0
+    max=math.floor(data[dimension_key].max())
+    max -= (max - min) % step
+    numsteps = (max - min) / step
     numsteps += 1
     dimension = np.linspace(
-        data[dimension_key].min(),
-        data[dimension_key].max(),
+        min,
+        max,
         numsteps
     )
-
     output = pd.DataFrame(columns=[dimension_key + suffix])
 
     # Raise exception if interpolated data has less points than original
