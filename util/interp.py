@@ -46,73 +46,83 @@ def remove_nans(
     return data
 
 def pchip_interpolate_profile(
-        data: pd.DataFrame,
-        dimension_key: str,
-        step: float=1,
-        suffix: str='_interp'
+        x: list,
+        y: list,
+        x_interp: list=[],
+        step: float=1
 ):
     """
-    Interpolates all variables in the data with respect to the dimension_key -
-    variable. Keeps the original data, and tries to align this with the
-    interpolated values.
+    Interpolates list y with respect to list x. If x_interp is given, this is
+    used for the interpolation, otherwise interpolated against a series
+    generated using generate_regular_monotonus_squence(x, step).
 
-    Dimension data are between min() and max() values, and are rounded to fit
-    the step-parameter. So if step is 5, all dimesion data will be divisible by
-    5. Eg if:
+    Example:
 
-    depth=[11,13,19,25]
-    step=2
-
-    then:
-    depth_interp=[12, 14, 16, 18, 20, 22, 24]
+    >>> x,y = pchip_interpolate_profile([11,13,19,25], [200,350,450,500], step=2)
+    >>> x
+    array([12., 14., 16., 18., 20., 22., 24.])
+    >>> y
+    array([289.76871469, 377.05063821, 414.5480226 , 439.11383135,
+           460.84104938, 480.20833333, 494.94598765])
 
     """
+    # check input vars are equal length
+    if len(x) != len(y):
+        raise Exception("x and y must be lists of same size")
+
     # Create interpolated list of independent variable
-    min=math.ceil(data[dimension_key].min())
-    min += step - (min % step) if min % step > 0 else 0
-    max=math.floor(data[dimension_key].max())
-    max -= (max - min) % step
-    numsteps = (max - min) / step
-    numsteps += 1
+    if len(x_interp) == 0:
+        x_interp = generate_regular_monotonus_squence(x, step)
+
+    # Remove nans
+    xx = []
+    yy = []
+    for x_, y_ in zip(x,y):
+        if math.isnan(x_) or math.isnan(y_):
+            continue
+        xx.append(x_)
+        yy.append(y_)
+
+    # Sort by xx
+    xx, yy = (list(x) for x in zip(*sorted(zip(xx, yy))))
+
+    if len(yy)<2:
+        # Interpolation not possible
+        raise Exception("Input data has less than 2 valid elements")
+
+    pchip = interp.PchipInterpolator(xx, yy, extrapolate=False)
+    y_interp = pchip(x_interp)
+    return x_interp, y_interp
+
+def generate_regular_monotonus_squence(data: list=[], step: float=1):
+    """
+    Generate a regular, monotonous number sequence from data list, with
+    sequence step. The sequence is garanteed to have
+
+    max <= max(data) and min >= min(data)
+
+    The series is also garanteed to always return the same numbers for overlapping
+    data, as long as step is the same. So that eg:
+
+    >>> x=generate_regular_monotonus_squence([7.3,17.234], 1.24)
+    >>> x
+    array([ 7.44,  8.68,  9.92, 11.16, 12.4 , 13.64, 14.88, 16.12])
+    >>> y=generate_regular_monotonus_squence([9.7,18.75], 1.24)
+    >>> y
+    array([ 9.92, 11.16, 12.4 , 13.64, 14.88, 16.12, 17.36, 18.6 ])
+    >>> ########## Overlaps: ##########
+    >>> list(set(x) & set(y))
+    [9.92, 11.16, 12.4, 13.64, 14.88, 16.12]
+    """
+    _min=math.ceil(min(data)/step)
+    _max=math.floor(max(data)/step)
+    numsteps = _max - _min + 1
     dimension = np.linspace(
-        min,
-        max,
+        _min * step,
+        _max * step,
         numsteps
     )
-    output = pd.DataFrame(columns=[dimension_key + suffix])
-
-    # Raise exception if interpolated data has less points than original
-    if len(dimension)<len(data):
-        raise Exception(
-            'Interpolated values cannot be less than actual data points'
-        )
-    if len(data)<2:
-        raise Exception(
-            'Needs at least 2 data points to interpolate'
-        )
-
-    output[dimension_key + suffix] = dimension
-    output[dimension_key] = np.nan
-    for var in data:
-        if var == dimension_key:
-            continue
-        pchip = interp.PchipInterpolator(data[dimension_key], data[var])
-        output[var + suffix] = pchip(dimension)
-        output[var] = np.nan
-    prev = 0
-    orig_index = 0
-    for i, dim in output[dimension_key + suffix].items():
-        if dim == data.loc[orig_index, dimension_key]:
-            for key in data:
-                output.loc[i, key] = data.loc[orig_index, key]
-            orig_index += 1
-        elif dim > data.loc[orig_index, dimension_key] and prev > 0:
-            for key in data:
-                output.loc[prev, key] = data.loc[orig_index, key]
-            orig_index += 1
-        prev = i
-
-    return output
+    return dimension
 
 def subst_depth_profile_gaps_with_nans (
         data: pd.DataFrame,
