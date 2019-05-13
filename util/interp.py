@@ -125,9 +125,9 @@ def generate_regular_monotonus_squence(data: list=[], step: float=1):
     return dimension
 
 def subst_depth_profile_gaps_with_nans (
-        data: pd.DataFrame,
-        dimension_key: str,
-        dimension_keys_to_clear: list=[],
+        x: list=[],
+        y: list=[],
+        depths: list=[],
         thresholds: dict={
             500: 300,
             1500: 600,
@@ -146,34 +146,64 @@ def subst_depth_profile_gaps_with_nans (
     set to NaN.
     """
 
-    drop_row = 'ROW_DELETE_MARKER'
-    data[drop_row] = False
-
     prev_index = 0
-    first = True
-    for i, depth in data.loc[data[dimension_key].notnull()][dimension_key].items():
-        if first:
-            first = False
-            prev_index = i
+    delete_between = []
+    for i, depth in enumerate(depths):
+        if i == 0:
             continue
-        last_threshold = 0
+        prev_threshold = 0
         for threshold, gap in thresholds.items():
-            if last_threshold <= depth < threshold :
-                if (depth - data.loc[prev_index, dimension_key]) > gap:
-                    # Set values to nan before / after gap
-                    if prev_index + 1 < i:
-                        data.loc[prev_index+1, dimension_keys_to_clear] = np.nan
-                        data.loc[i-1, dimension_keys_to_clear] = np.nan
-                    # ...and delete rows in gap
-                    if prev_index + 3 < i:
-                        data.loc[prev_index+2:i-2, drop_row] = True
-            last_threshold = threshold
+            if prev_threshold <= depth < threshold :
+                if (depth - depths[prev_index]) > gap:
+                    delete_between.append(
+                        {
+                            'min': depths[prev_index],
+                            'max': depths[i],
+                        }
+                    )
+            prev_threshold = threshold
         prev_index = i
 
-    # Remove rows where ROW_DELETE_MARKER is True
-    data = data.drop(data[data[drop_row]==True].index)
+    delete_enumerator = enumerate(delete_between)
+    delete_next = next(delete_enumerator)
+    xout = []
+    yout = []
+    no_more_gaps = True if len(delete_between) == 0 else False
+    nanset = False
+    for i, xx in enumerate(x):
+        if no_more_gaps:
+            xout.append(xx)
+            yout.append(y[i])
+            continue
+        if xx < delete_next[1]['min']:
+            xout.append(xx)
+            yout.append(y[i])
+            continue
+        if delete_next[1]['min'] <= xx <= delete_next[1]['max']:
+            if not nanset:
+                nanset = True
+                xout.append(xx)
+                yout.append(np.nan)
+            continue
+        while not no_more_gaps and xx >= delete_next[1]['max']:
+            nanset = False
+            try:
+                delete_next = next(delete_enumerator)
+                if xx < delete_next[1]['min']:
+                    xout.append(xx)
+                    yout.append(y[i])
+                    break
+                if delete_next[1]['min'] <= xx <= delete_next[1]['max']:
+                    if not nanset:
+                        nanset = True
+                        xout.append(xx)
+                        yout.append(np.nan)
+                    break
+            except Exception as e:
+                no_more_gaps = True
+                xout.append(xx)
+                yout.append(y[i])
 
-    # deleting the drop_row column
-    del data[drop_row]
 
-    return data
+
+    return xout, yout
