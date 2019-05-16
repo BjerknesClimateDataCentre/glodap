@@ -72,7 +72,11 @@ def pchip_interpolate_profile(
 
     # Create interpolated list of independent variable
     if len(x_interp) == 0:
-        x_interp = generate_regular_monotonus_squence(x, step)
+        x_interp = generate_regular_monotonus_squence(
+            _min=min(x),
+            _max=max(x),
+            step=step,
+        )
 
     # Remove nans
     xx = []
@@ -94,7 +98,11 @@ def pchip_interpolate_profile(
     y_interp = pchip(x_interp)
     return x_interp, y_interp
 
-def generate_regular_monotonus_squence(data: list=[], step: float=1):
+def generate_regular_monotonus_squence(
+        _min:float=1500,
+        _max:float=12000,
+        step: float=1
+):
     """
     Generate a regular, monotonous number sequence from data list, with
     sequence step. The sequence is garanteed to have
@@ -114,20 +122,23 @@ def generate_regular_monotonus_squence(data: list=[], step: float=1):
     >>> list(set(x) & set(y))
     [9.92, 11.16, 12.4, 13.64, 14.88, 16.12]
     """
-    _min=math.ceil(min(data)/step)
-    _max=math.floor(max(data)/step)
+    _min=math.ceil(_min/step)
+    _max=math.floor(_max/step)
     numsteps = _max - _min + 1
-    dimension = np.linspace(
-        _min * step,
-        _max * step,
-        numsteps
-    )
+    dimension = [
+        *np.linspace(
+            _min * step,
+            _max * step,
+            numsteps
+        )
+    ]
     return dimension
 
 def subst_depth_profile_gaps_with_nans (
-        x: list=[],
-        y: list=[],
+        x_interp: list=[],
+        y_interp: list=[],
         depths: list=[],
+        x_orig: list=[],
         thresholds: dict={
             500: 300,
             1500: 600,
@@ -142,8 +153,19 @@ def subst_depth_profile_gaps_with_nans (
     * depth between 500m and 1500m and gap > 600
     * depth > 1500m and gap > 1100m
 
-    The way it works is that all rows in the gap are removed but one, which is
-    set to NaN.
+    y-values for all rows in the gap are set to NaN.
+
+    Input-variables:
+    - x_interp: List of interpolated independent variable, normally depths or
+    sigma4
+    - y_interp: List of interpolated dependent variable, like measured silikate.
+                Length of x_interp and y_interp are the same.
+    - depths: Original sampling depths
+    - x_orig: List of original x-values, length matching depths. Defaults to
+    depths.
+    - thresholds: Ordered dictionary of { depth: gap } values. Means something
+    like: For values shallower than key, if gap > value set interpolated values
+    to nan
     """
 
     prev_index = 0
@@ -157,52 +179,51 @@ def subst_depth_profile_gaps_with_nans (
                 if (depth - depths[prev_index]) > gap:
                     delete_between.append(
                         {
-                            'min': depths[prev_index],
-                            'max': depths[i],
+                            'min_x': x_orig[prev_index],
+                            'max_x': x_orig[i],
                         }
                     )
             prev_threshold = threshold
         prev_index = i
-
-    delete_enumerator = enumerate(delete_between)
-    delete_next = next(delete_enumerator)
     xout = []
     yout = []
-    no_more_gaps = True if len(delete_between) == 0 else False
-    nanset = False
-    for i, xx in enumerate(x):
-        if no_more_gaps:
-            xout.append(xx)
-            yout.append(y[i])
-            continue
-        if xx < delete_next[1]['min']:
-            xout.append(xx)
-            yout.append(y[i])
-            continue
-        if delete_next[1]['min'] <= xx <= delete_next[1]['max']:
-            if not nanset:
-                nanset = True
+    if len(delete_between) == 0:
+        xout = x_interp
+        yout = y_interp
+    else:
+        delete_enumerator = enumerate(delete_between)
+        delete_next = next(delete_enumerator)
+        no_more_gaps = True if len(delete_between) == 0 else False
+        nanset = False
+        for i, xx in enumerate(x_interp):
+            if no_more_gaps:
+                xout.append(xx)
+                yout.append(y_interp[i])
+                continue
+            if xx < delete_next[1]['min_x']:
+                xout.append(xx)
+                yout.append(y_interp[i])
+                continue
+            if delete_next[1]['min_x'] <= xx <= delete_next[1]['max_x']:
                 xout.append(xx)
                 yout.append(np.nan)
-            continue
-        while not no_more_gaps and xx >= delete_next[1]['max']:
-            nanset = False
-            try:
-                delete_next = next(delete_enumerator)
-                if xx < delete_next[1]['min']:
-                    xout.append(xx)
-                    yout.append(y[i])
-                    break
-                if delete_next[1]['min'] <= xx <= delete_next[1]['max']:
-                    if not nanset:
-                        nanset = True
+                continue
+            while not no_more_gaps and xx >= delete_next[1]['max_x']:
+                nanset = False
+                try:
+                    delete_next = next(delete_enumerator)
+                    if xx < delete_next[1]['min_x']:
+                        xout.append(xx)
+                        yout.append(y_interp[i])
+                        break
+                    if delete_next[1]['min_x'] <= xx <= delete_next[1]['max_x']:
                         xout.append(xx)
                         yout.append(np.nan)
-                    break
-            except Exception as e:
-                no_more_gaps = True
-                xout.append(xx)
-                yout.append(y[i])
+                        break
+                except Exception as e:
+                    no_more_gaps = True
+                    xout.append(xx)
+                    yout.append(y_interp[i])
 
 
 
