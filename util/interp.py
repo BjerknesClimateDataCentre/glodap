@@ -17,8 +17,11 @@ def average_values_for_duplicate_dimension(
     Return your modified DataFrame
     """
 
-
-    return data.groupby(dimension_key).mean().reset_index()
+    output = data.groupby(dimension_key).mean().reset_index()
+    for column in data.columns:
+        if column not in output.columns:
+            output[column] = data[column].iloc[0]
+    return output
 
 def sort_data_set_on_dimension(
     data: pd.DataFrame,
