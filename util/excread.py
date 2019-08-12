@@ -85,7 +85,7 @@ def _excread(excfile):
                 )
         ):
             first = False
-            matches = re.search('((BOTTLE)|(CTD)),(.*)$', line)
+            matches = re.search('((BOTTLE)|(CTD))[, ](.*)$', line)
             signature = matches.group(4)
             file_type = matches.group(1)
             continue
