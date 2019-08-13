@@ -98,9 +98,9 @@ def _excread(path, encoding="utf-8"):
             else:
                 # Register header lines
                 if line.startswith('EXPOCODE'):
-                    column_headers = line.split(',')
+                    column_headers = [s.strip() for s in line.split(',')]
                 elif line.startswith(',,,'):
-                    column_units = line.split(',')
+                    column_units =  [s.strip() for s in line.split(',')]
                 else:
                     break
 
@@ -130,8 +130,15 @@ def _excread(path, encoding="utf-8"):
     df_obj = dataframe.select_dtypes(['object'])
     dataframe[df_obj.columns] = df_obj.apply(lambda x: x.str.strip())
 
+    # If 'TIME' not present but 'HOUR' and 'MINUTE' is, then make time :)
+    if (not 'TIME' in dataframe.columns
+            and 'HOUR' in dataframe.columns
+            and 'MINUTE' in dataframe.columns):
+        dataframe['TIME'] = [
+            f'{d.HOUR:02}{d.MINUTE:02}' for i, d in dataframe.iterrows()
+        ]
 
-    # Add a datetime column. If time is not present, time is set to 00:00
+    # Add a datetime column
     if 'DATE' in dataframe.columns and 'TIME' in dataframe.columns:
         datetime = []
         for ix, d in enumerate(dataframe['DATE']):
@@ -142,7 +149,7 @@ def _excread(path, encoding="utf-8"):
                 datetime.append(pd.to_datetime('{} {}'.format(date, time), utc=True))
             except Exception as e:
                 logger.error(
-                    'Timer format error (date: {}) (time: {}) on line {}'
+                    'Time format error (date: {}) (time: {}) on line {}'
                             .format(
                             d,
                             t,
