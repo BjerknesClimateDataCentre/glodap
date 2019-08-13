@@ -3,6 +3,7 @@ import logging
 import datetime
 import pandas as pd
 import numpy as np
+from file_read_backwards import FileReadBackwards
 
 @pd.api.extensions.register_dataframe_accessor("whp_exchange")
 class ExchangeAccessor(object):
@@ -29,21 +30,19 @@ def excread(path):
 
     logger = logging.getLogger('glodap.util.excread')
     try:
-        with open(path, encoding="utf-8") as excfile:
+        encoding = "utf-8"
+        with open(path, encoding=encoding) as excfile:
             excfile.readline()
-            excfile.seek(0)
-            return _excread(excfile)
     except:
         try:
-            with open(path, encoding="iso-8859-1") as excfile:
+            encoding = "iso-8859-1"
+            with open(path, encoding=encoding) as excfile:
                 excfile.readline()
-                excfile.seek(0)
                 logger.info(
                     'File {} character encoding is ISO-8859-1'.format(
                         path
                     )
                 )
-                return _excread(excfile)
         except Exception as err:
             logger.error(
                 'Could not read file {}'.format(
@@ -51,12 +50,12 @@ def excread(path):
                 )
             )
             raise err
+    return _excread(path, encoding=encoding)
 
-def _excread(excfile):
+def _excread(path, encoding="utf-8"):
     """Dont call this directly, use excread() instead."""
-
     logger = logging.getLogger('glodap.util.excread')
-    rewindto = 0
+    skipfooter = 0
     first = True
     signature = ''
     file_type = ''
@@ -72,40 +71,45 @@ def _excread(excfile):
     ]
 
     # Loop over the header to collect metadata and remove file type info
-    while True:
-        headerlines += 1
-        rewindto = excfile.tell()
-        line = excfile.readline().strip()
-        # Get the file type and signature
-        if (
-                first
-                and (
-                    line.startswith('CTD')
-                    or line.startswith('BOTTLE')
-                )
-        ):
-            first = False
-            matches = re.search('((BOTTLE)|(CTD))[, ](.*)$', line)
-            signature = matches.group(4)
-            file_type = matches.group(1)
-            continue
-        # ignore empty lines
-        elif not line:
-            continue
-        # Keep comments as metadata
-        elif line.startswith('#'):
-            comments += line + "\n"
-            continue
-        else:
-            # Register header lines
-            if line.startswith('EXPOCODE'):
-                column_headers = line.split(',')
-            elif line.startswith(',,,'):
-                column_units = line.split(',')
+    with open(path, encoding=encoding) as excfile:
+        while True:
+            headerlines += 1
+            line = excfile.readline().strip()
+            # Get the file type and signature
+            if (
+                    first
+                    and (
+                        line.startswith('CTD')
+                        or line.startswith('BOTTLE')
+                    )
+            ):
+                first = False
+                matches = re.search('((BOTTLE)|(CTD))[, ](.*)$', line)
+                signature = matches.group(4)
+                file_type = matches.group(1)
+                continue
+            # ignore empty lines
+            elif not line.strip():
+                continue
+            # Keep comments as metadata
+            elif line.startswith('#'):
+                comments += line + "\n"
+                continue
             else:
+                # Register header lines
+                if line.startswith('EXPOCODE'):
+                    column_headers = line.split(',')
+                elif line.startswith(',,,'):
+                    column_units = line.split(',')
+                else:
+                    break
+
+    with FileReadBackwards(path, encoding=encoding) as fin:
+        for line in fin:
+            skipfooter += 1
+            if line.strip() == 'END_DATA':
                 break
 
-    excfile.seek(rewindto)
     data_types = {
         'EXPOCODE': str,
         'SECT_ID': str,
@@ -113,23 +117,19 @@ def _excread(excfile):
         'TIME': str,
     }
     dataframe = pd.read_csv(
-        excfile,
+        path,
         names=column_headers,
         dtype=data_types,
+        skiprows=headerlines,
+        skipfooter=skipfooter,
+        engine='python',
+        encoding=encoding,
     )
 
     # Strip leading and trailing whitespaces from string columns
     df_obj = dataframe.select_dtypes(['object'])
     dataframe[df_obj.columns] = df_obj.apply(lambda x: x.str.strip())
 
-    # drop lines after and including END_DATA
-    drop_lines = []
-    for val in reversed(range(len(dataframe))):
-        drop_lines.append(val)
-        if 'END_DATA' in dataframe.iloc[val, 0]:
-            for line in drop_lines:
-                dataframe = dataframe.drop(line, axis=0)
-            break
 
     # Add a datetime column. If time is not present, time is set to 00:00
     if 'DATE' in dataframe.columns and 'TIME' in dataframe.columns:
