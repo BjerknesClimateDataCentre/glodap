@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import statistics as stat
 from operator import itemgetter
 
@@ -72,8 +73,22 @@ def stats_and_offset(
         use_additive_offset,
     )
     input['offset'] = offset
-    print("Len: {} key: {}".format(len(input), dependent_key))
     input[dependent_key + '_mean'] = stat.mean(input[dependent_key])
     input[dependent_key + '_stdev'] = stat.stdev(input[dependent_key])
 
     return input
+
+def linear_fit(x, y):
+    """
+    Calculates linear regression for x and y. First removing all elemets
+    where either x or y is None or NaN.
+
+    Return a tuple (slope, intercept)
+    """
+    xx = []
+    yy = []
+    for ix, val in enumerate(x):
+        if pd.notnull(val) and pd.notnull(y[ix]):
+            xx.append(x[ix])
+            yy.append(y[ix])
+    return np.polyfit(xx, yy, 1)
