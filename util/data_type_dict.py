@@ -60,6 +60,7 @@ class DataTypeDict():
         'chla'         : 'SDN:P01::CPHLZZXX',
         'doc'          : 'SDN:P01::CORGZZZX',
         'don'          : 'SDN:P01::MDMAP008',
+        'fco2'         : 'SDN:P01::FCO2XXXX',
         'gamma'        : 'SDN:P01::NEUTDENS',
         'h3'           : 'SDN:P01::ACTVM012',
         'h3err'        : 'SDN:P01::DHE3XXER',
