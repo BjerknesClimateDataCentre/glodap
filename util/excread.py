@@ -145,7 +145,10 @@ def _excread(path, encoding="utf-8"):
             try:
                 t = dataframe['TIME'][ix]
                 date='{}-{}-{}'.format(d[:4], d[4:6], d[6:])
-                time = '{}:{}'.format(t[:2], t[2:])
+                if t == '0':
+                    time = '00:00'
+                else:
+                    time = '{}:{}'.format(t[:2], t[2:])
                 datetime.append(pd.to_datetime('{} {}'.format(date, time), utc=True))
             except Exception as e:
                 logger.error(
