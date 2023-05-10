@@ -4,6 +4,8 @@ import datetime
 import pandas as pd
 import numpy as np
 from file_read_backwards import FileReadBackwards
+import dateutil.parser as parser
+
 
 @pd.api.extensions.register_dataframe_accessor("whp_exchange")
 class ExchangeAccessor(object):
@@ -51,6 +53,57 @@ def excread(path):
             )
             raise err
     return _excread(path, encoding=encoding)
+
+   ## logger = logging.getLogger('glodap.util.excread')
+########
+   ## encodingup = [
+   ##         'ascii',
+   ##         'utf-8',
+   ##         'iso-8859-1',
+   ##         'latin-1'
+##]
+  ##  info =None
+  ##  for encoding in encodingup:
+  ##      try:
+  ##          with open(path, encoding=encoding) as excfile:
+  ##              excfile.readline()
+  ##      except: 
+  ##          continue
+  ##      else:
+########            
+    #try:
+       # encoding = "utf-8"
+      #  with open(path, encoding=encoding) as excfile:
+     #       excfile.readline()
+    #except Exception:
+        #try: 
+            #encoding = "iso-8859-1"
+           # with open(path, encoding=encoding) as excfile:
+             #   excfile.readline()            
+            #    logger.info(
+           #         'File {} character encoding is ISO-8859-1'.format(
+          #              path
+         #           )
+        #        )
+        #except Exception:
+            #try:
+                #encoding = "latin-1"
+                #with open(path, encoding=encoding) as excfile:
+               #     excfile.readline()
+              #      logger.info(
+             #           'File {} character encoding is latin-1'.format(
+            #                path
+           #             )
+          #          )
+         #   except Exception as err:
+        #        logger.error(
+       #             'Could not read file {}'.format(
+      #                  path
+     #                )   
+     #            )
+    #        raise err
+    #     return _excread(path, encoding=encoding)
+
 
 def _excread(path, encoding="utf-8"):
     """Dont call this directly, use excread() instead."""
@@ -104,11 +157,54 @@ def _excread(path, encoding="utf-8"):
                 else:
                     break
 
-    with FileReadBackwards(path, encoding=encoding) as fin:
-        for line in fin:
-            skipfooter += 1
-            if line.strip() == 'END_DATA':
-                break
+   ## with FileReadBackwards(path, encoding=encoding) as fin:
+   ##     for line in fin:
+   ##         skipfooter += 1
+   ##         if line.strip() == 'END_DATA':
+   ##             break
+##############
+    #try:
+        ##encoding = "utf-8"    
+        ##with FileReadBackwards(path, encoding=encoding) as fin:
+        ##    for line in fin:
+        ##        skipfooter += 1
+        ##        if line.strip() == 'END_DATA': 
+        ##            break
+
+        encoding_list = ['ascii','latin-1','iso-8859-1']
+        ##encoding_list = ['ascii','latin-1','iso-8859-1','ISO8601']
+        for encoding in encoding_list:
+            worked = True
+        try:
+            with FileReadBackwards(path, encoding=encoding) as fin:
+                for line in fin:
+                    skipfooter += 1
+                    if line.strip() == 'END_DATA':
+                        continue
+        except:
+            worked = False
+        if worked:
+            print(encoding_list)
+
+   #except: 
+    ##   try:
+    ##        encoding = "iso-8859-1"
+    ##    with FileReadBackwards(path, encoding=encoding) as fin:
+    ##        for line in fin:
+    ##            skipfooter += 1
+    ##            if line.strip() == 'END_DATA':                    
+    ##    except:
+    ##        pass
+    ##        try:
+    ##    encoding = "latin-1"
+    ##    with FileReadBackwards(path, encoding=encoding) as fin:
+    ##        for line in fin:
+    ##            skipfooter += 1
+    ##            if line.strip() == 'END_DATA':                    
+    ##        except:
+    ##            pass
+
+##################
 
     data_types = {
         'EXPOCODE': str,
@@ -116,40 +212,138 @@ def _excread(path, encoding="utf-8"):
         'DATE': str,
         'TIME': str,
     }
+    
+    ##dataframe = pd.read_csv(
+    ##    path,
+    ##    names=column_headers,
+    ##    dtype=data_types,
+    ##    skiprows=headerlines,
+    ##    skipfooter=skipfooter,
+    ##    engine='python',
+    ##    encoding=encoding,
+   ## )
+          
+   ## dataframe = pd.read_csv(
+   ##     path,
+   ##     names=column_headers,
+   ##     dtype=data_types,
+   ##     skiprows=headerlines,
+   ##     nrows=1000,
+   ##     engine='python',
+   ##     encoding=encoding,
+   ##     index_col=False,
+   ##     warn_bad_lines=True,
+   ##     error_bad_lines=False,
+   ## )
+    
     dataframe = pd.read_csv(
         path,
         names=column_headers,
         dtype=data_types,
         skiprows=headerlines,
-        skipfooter=skipfooter,
+        nrows=1500,
         engine='python',
         encoding=encoding,
+        index_col=False,
+        warn_bad_lines=True,
+        error_bad_lines=False,
+        sep = ',',
     )
+    #keep_default_na =False,
+
+    dataframe=dataframe.dropna(axis=0, how='any')
+    dataframe = dataframe.replace(to_replace='None', value=np.nan).dropna()
+
+    #dataframe = dataframe.fillna(0, inplace =True)
+    #dataframe = dataframe.astype('float',errors='ignore')
+    
+
+
+
+
+    
+
 
     # Strip leading and trailing whitespaces from string columns
     df_obj = dataframe.select_dtypes(['object'])
     dataframe[df_obj.columns] = df_obj.apply(lambda x: x.str.strip())
+    #dataframe[df_obj.columns] = df_obj.dropna()
+    ##dataframe[df_obj.columns] = df_obj.apply(lambda x: x.str.strip())
 
     # If 'TIME' not present but 'HOUR' and 'MINUTE' is, then make time :)
+    ##if (not 'TIME' in dataframe.columns
+    ##        and 'HOUR' in dataframe.columns
+    ##        and 'MINUTE' in dataframe.columns):
+    ##    dataframe['TIME'] = [
+    ##        f'{d.HOUR:02}{d.MINUTE:02}' for i, d in dataframe.iterrows()
+    ##    ]
+
+    #if ('CASTNO' in dataframe.columns):
+    #    dataframe['CASTNO']=dataframe['CASTNO']
+    #elif ( not 'CASTNO' in dataframe.columns):
+    #    dataframe['CASTNO']=1
+    #else:
+    # print(STNNBR)
+
+
+
+    FilterCondition=dataframe['CASTNO'].between(59,200).values
+    dataframe.loc[FilterCondition, 'CASTNO']=0
+    
+
+
+    #FilterCondition=dataframe['DATE'].between(100209,100220).values
+    #dataframe.loc[FilterCondition, 'DATE']=20100209
+
     if (not 'TIME' in dataframe.columns
             and 'HOUR' in dataframe.columns
             and 'MINUTE' in dataframe.columns):
         dataframe['TIME'] = [
             f'{d.HOUR:02}{d.MINUTE:02}' for i, d in dataframe.iterrows()
         ]
+    elif (not 'TIME' in dataframe.columns):
+         dataframe['TIME'] = [
+                f'{d.CASTNO:06}' for i, d in dataframe.iterrows()
+        ]
+    elif ('TIME' in dataframe.columns):
+        dataframe['TIME'] = [
+                f'{d.CASTNO:06}' for i, d in dataframe.iterrows()
+        ]
+    else:
+        print(df_obj)
 
+
+        #if (not 'TIME' in dataframe.columns):
+        # dataframe['TIME'] = [
+        #        f'{d.STNNBR:06}' for i, d in dataframe.iterrows()
+        #]
+        
+
+    
+    
     # Add a datetime column
     if 'DATE' in dataframe.columns and 'TIME' in dataframe.columns:
         datetime = []
-        for ix, d in enumerate(dataframe['DATE']):
+        
+        for ix, d in enumerate(dataframe['DATE'],start=0):
             try:
                 t = dataframe['TIME'][ix]
+                print (ix,d)
                 date='{}-{}-{}'.format(d[:4], d[4:6], d[6:])
-                time = '{}:{}'.format(t[:2], t[2:])
-                datetime.append(pd.to_datetime('{} {}'.format(date, time), utc=True))
+                #date= dataframe['DATE'].apply(lambda d:.format(d[:4], d[4:6], d[6:]
+                #date = filter(lambda d: d is not None,'{}-{}-{}'.format(d[:4], d[4:6], d[6:]))
+                
+                #print(date)
+                #date='{}-{}-{}'.format(d[:4], d[4:6], d[6:])
+                #print(d)
+                #date='{}-{}-{}'.format(d[:4], d[4:6], d[6:])
+                #print(date)
+                time = '{}:{}'.format(t[:2], t[2:])               
+                datetime.append(pd.to_datetime('{} {}'.format(date,time), utc=True))
+                #datetime.append(pd.to_datetime(str(dataframe['DATE'])))
             except Exception as e:
                 logger.error(
-                    'Time format error (date: {}) (time: {}) on line {}'
+                        'Time format error (date: {} time: {} )) on line {}'
                             .format(
                             d,
                             t,
@@ -167,7 +361,7 @@ def _excread(path, encoding="utf-8"):
 
     # Replace -9999, -999, -99, -9 with np.nan
     dataframe = dataframe.replace([-9999, -999, -99, -9], np.nan)
-
+    #dataframe = dataframe.replace(np.nan, 0)
     # Add some extra metadata to the dataframe
     dataframe.whp_exchange.column_units = column_units
     dataframe.whp_exchange.signature = signature
