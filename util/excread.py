@@ -54,6 +54,20 @@ def excread(path):
             raise err
     return _excread(path, encoding=encoding)
 
+
+
+    #encoding_list = ['ascii','latin-1','iso-8859-1']
+        ##encoding_list = ['ascii','latin-1','iso-8859-1','ISO8601']
+    #for encoding in encoding_list:
+    #        worked = True
+    #try:
+    #        with open(path, encoding=encoding) as excfile:
+    #            excfile.readline()
+    #except:
+    #    print(encoding_list)
+      
+
+
    ## logger = logging.getLogger('glodap.util.excread')
 ########
    ## encodingup = [
@@ -212,6 +226,9 @@ def _excread(path, encoding="utf-8"):
         'DATE': str,
         'TIME': str,
     }
+
+    
+
     
     ##dataframe = pd.read_csv(
     ##    path,
@@ -251,14 +268,21 @@ def _excread(path, encoding="utf-8"):
     )
     #keep_default_na =False,
 
+    #dataframe=dataframe.loc[:,~dataframe.columns.str.contains('^SAMPNO')]
+    #dataframe =dataframe['SAMPNO'].str.startswith ('SAMPNO')
+    #dataframe =dataframe.drop(columns='SAMPNO')
+    #print(f"dataFrame:\n{dataframe}\n")
+    #dataframe =dataframe.drop(dataframe.filter(regex='SAMPNO').columns, axis =1)
+    #print(f"dataFrame:\n{dataframe}\n")
+
     dataframe=dataframe.dropna(axis=0, how='any')
     dataframe = dataframe.replace(to_replace='None', value=np.nan).dropna()
 
-    #dataframe = dataframe.fillna(0, inplace =True)
+    #dataframe=dataframe.loc[:,~dataframe.columns.str.contains('^SAMPNO')]
+
     #dataframe = dataframe.astype('float',errors='ignore')
     
-
-
+    #dataframe[~dataframe[df_obj.columns].isnull()]dataframe[[df_obj.columns]].astype(int)
 
 
     
@@ -267,7 +291,8 @@ def _excread(path, encoding="utf-8"):
     # Strip leading and trailing whitespaces from string columns
     df_obj = dataframe.select_dtypes(['object'])
     dataframe[df_obj.columns] = df_obj.apply(lambda x: x.str.strip())
-    #dataframe[df_obj.columns] = df_obj.dropna()
+    
+    #dataframe[df_obj.columns] = dataframe[df_obj.columns].replace(np.NaN,0)
     ##dataframe[df_obj.columns] = df_obj.apply(lambda x: x.str.strip())
 
     # If 'TIME' not present but 'HOUR' and 'MINUTE' is, then make time :)
@@ -278,17 +303,11 @@ def _excread(path, encoding="utf-8"):
     ##        f'{d.HOUR:02}{d.MINUTE:02}' for i, d in dataframe.iterrows()
     ##    ]
 
-    #if ('CASTNO' in dataframe.columns):
-    #    dataframe['CASTNO']=dataframe['CASTNO']
-    #elif ( not 'CASTNO' in dataframe.columns):
-    #    dataframe['CASTNO']=1
-    #else:
-    # print(STNNBR)
 
 
-
-    FilterCondition=dataframe['CASTNO'].between(59,200).values
+    FilterCondition=dataframe['CASTNO'].between(1,200).values
     dataframe.loc[FilterCondition, 'CASTNO']=0
+   
     
 
 
@@ -317,19 +336,60 @@ def _excread(path, encoding="utf-8"):
         # dataframe['TIME'] = [
         #        f'{d.STNNBR:06}' for i, d in dataframe.iterrows()
         #]
-        
 
-    
-    
+    #if 'DATE' in dataframe.columns:
+    #    datetime =[]
+    #    d1=pd.to_datetime(dataframe['DATE'],format='%y%m%d')
+    #    print(dataframe['DATE'])
+        #dataframe['DATE']=d1.dt.strftime('%Y%b%d')
+    #    dataframe['DATE']=pd.to_datetime(d1,format='%Y%m%d')
+    #    print(dataframe['DATE'])
+    #    dataframe['DATE']=dataframe['DATE'].dt.strftime('%Y%m%d').astype(object)
+    #    print(dataframe['DATE'])
+
+        #dataframe['DATE']= pd.to_datetime(dataframe['DATE'],format='%y%m%d')
+        #dataframe['DATE'] = datetime.strptime(['DATE'],'%y%m%d')
+        #dataframe['DATE'] = dataframe['DATE'].strftime('%Y%b%d')
+        #dataframe['DATE']= pd.to_datetime(dataframe['DATE'],format='%Y%b%d') 
+    #return dataframe
+
+
+  #dataframe['DATE']=pd.to_datetime('{} {}'.format(date,time))
+  # print(DATE)
+     
+
+
     # Add a datetime column
     if 'DATE' in dataframe.columns and 'TIME' in dataframe.columns:
         datetime = []
+
         
+
+        
+        try:
+                d1=pd.to_datetime(dataframe['DATE'],format='%y%m%d')
+                dataframe['DATE']=pd.to_datetime(d1,format='%Y%m%d')
+                dataframe['DATE']=dataframe['DATE'].dt.strftime('%Y%m%d').astype(object)
+        except:
+                dataframe['DATE']=dataframe['DATE']
+
+        
+
+
+
         for ix, d in enumerate(dataframe['DATE'],start=0):
+         
             try:
                 t = dataframe['TIME'][ix]
                 print (ix,d)
                 date='{}-{}-{}'.format(d[:4], d[4:6], d[6:])
+
+               
+                #try:
+                #    date=d2
+                #except:
+                #    date=d1
+
                 #date= dataframe['DATE'].apply(lambda d:.format(d[:4], d[4:6], d[6:]
                 #date = filter(lambda d: d is not None,'{}-{}-{}'.format(d[:4], d[4:6], d[6:]))
                 
@@ -352,6 +412,7 @@ def _excread(path, encoding="utf-8"):
                 )
                 raise e
         dataframe['EXC_DATETIME'] = datetime
+    
 
     # Try multiple sampling depth columns
     for name in sampl_depth_columns:
@@ -359,9 +420,14 @@ def _excread(path, encoding="utf-8"):
             dataframe['EXC_CTDDEPTH'] = dataframe[name]
             break
 
+    
+    #dataframe=dataframe.loc[:,~dataframe.columns.str.contains('^SAMPNO')]
+
+
     # Replace -9999, -999, -99, -9 with np.nan
+
     dataframe = dataframe.replace([-9999, -999, -99, -9], np.nan)
-    #dataframe = dataframe.replace(np.nan, 0)
+    
     # Add some extra metadata to the dataframe
     dataframe.whp_exchange.column_units = column_units
     dataframe.whp_exchange.signature = signature
